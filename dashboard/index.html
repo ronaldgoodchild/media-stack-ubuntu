@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REGTeches Media Stack</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 2.5rem 1rem;
+  }
+  header { text-align: center; margin-bottom: 2.5rem; }
+  header h1 { font-size: 2rem; font-weight: 700; color: #fff; }
+  header h1 span { color: #6366f1; }
+  header p { font-size: 0.85rem; color: #64748b; margin-top: 0.35rem; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .section-title {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: #475569;
+    margin: 2rem 0 0.7rem; padding-left: 2px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .card {
+    background: #1a1d2e; border: 1px solid #252840;
+    border-radius: 10px; padding: 1rem 1.1rem;
+    text-decoration: none; color: inherit;
+    display: flex; align-items: center; gap: 12px;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    position: relative;
+  }
+  .card:hover { border-color: #6366f1; background: #1e2140; transform: translateY(-1px); }
+  .icon { font-size: 1.4rem; flex-shrink: 0; width: 40px; text-align: center; }
+  .card-info { flex: 1; min-width: 0; }
+  .card-name { font-size: 0.9rem; font-weight: 600; color: #e2e8f0; }
+  .card-desc { font-size: 0.72rem; color: #64748b; margin-top: 2px; }
+  .card-stat { font-size: 0.72rem; color: #818cf8; margin-top: 2px; font-weight: 500; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: #475569; box-shadow: none;
+  }
+  .status-dot.up { background: #22c55e; box-shadow: 0 0 6px #22c55e99; }
+  .status-dot.starting { background: #f59e0b; box-shadow: 0 0 6px #f59e0b99; }
+  .status-dot.down { background: #ef4444; box-shadow: 0 0 6px #ef444499; }
+  .ctx-menu {
+    position: fixed; z-index: 1000; min-width: 200px;
+    background: #1a1d2e; border: 1px solid #2d3148; border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5); padding: 6px; display: none;
+  }
+  .ctx-menu.open { display: block; }
+  .ctx-menu-header { font-size: 0.68rem; color: #64748b; padding: 6px 10px 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .ctx-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-radius: 6px; font-size: 0.82rem; color: #e2e8f0; cursor: pointer;
+    text-decoration: none;
+  }
+  .ctx-item:hover { background: #2d3148; }
+  .ctx-item .ctx-icon { width: 18px; text-align: center; }
+  .info-box {
+    background: #1a1d2e; border: 1px solid #252840; border-radius: 10px;
+    padding: 1.1rem 1.3rem; margin-top: 0.7rem;
+  }
+  .info-box h3 { font-size: 0.75rem; color: #64748b; margin-bottom: 0.6rem; font-weight: 600; }
+  .info-row { display: flex; align-items: center; gap: 8px; padding: 0.4rem 0; border-top: 1px solid #1e2130; font-size: 0.8rem; }
+  .info-row:first-of-type { border-top: none; }
+  .info-path { font-family: monospace; color: #a5b4fc; flex: 1; }
+  .copy-btn { font-size: 0.68rem; padding: 3px 9px; border-radius: 5px; border: 1px solid #2d3148; background: transparent; color: #64748b; cursor: pointer; transition: all 0.15s; }
+  .copy-btn:hover { border-color: #6366f1; color: #a5b4fc; }
+  .copy-btn.copied { border-color: #22c55e; color: #22c55e; }
+  footer { text-align: center; margin-top: 3rem; font-size: 0.72rem; color: #334155; }
+  .note { font-size: 0.72rem; color: #475569; margin-top: 0.6rem; padding-left: 2px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .activity-row { display: flex; align-items: center; gap: 10px; padding: 0.5rem 0; border-top: 1px solid #1e2130; font-size: 0.8rem; }
+  .activity-row:first-of-type { border-top: none; }
+  .activity-icon { font-size: 1rem; flex-shrink: 0; width: 22px; text-align: center; }
+  .activity-main { flex: 1; min-width: 0; }
+  .activity-title { color: #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .activity-meta { font-size: 0.7rem; color: #64748b; margin-top: 1px; }
+  .activity-meta .app-name { color: #818cf8; }
+  .activity-time { font-size: 0.7rem; color: #475569; flex-shrink: 0; white-space: nowrap; }
+  .stat-card { background: #1a1d2e; border: 1px solid #252840; border-radius: 10px; padding: 1rem 1.1rem; }
+  .stat-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
+  .stat-label { font-size: 0.85rem; font-weight: 600; }
+  .stat-nums { font-size: 0.72rem; color: #64748b; font-family: monospace; }
+  .gauge-track { background: #11141f; border-radius: 999px; height: 8px; overflow: hidden; }
+  .gauge-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+  .gauge-fill.ok { background: #22c55e; }
+  .gauge-fill.warn { background: #f59e0b; }
+  .gauge-fill.crit { background: #ef4444; }
+  .stat-pcent { font-size: 0.7rem; color: #94a3b8; margin-top: 4px; text-align: right; }
+  .tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 1rem; }
+  .tab-btn {
+    background: #1a1d2e; border: 1px solid #252840; color: #94a3b8;
+    font-size: 0.82rem; font-weight: 600; padding: 0.5rem 1.2rem;
+    border-radius: 999px; cursor: pointer; transition: all 0.15s;
+  }
+  .tab-btn:hover { border-color: #6366f1; color: #e2e8f0; }
+  .tab-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .help-card {
+    background: #1a1d2e; border: 1px solid #252840; border-radius: 10px;
+    padding: 1.2rem 1.4rem; margin-top: 0.7rem; font-size: 0.85rem; line-height: 1.6;
+  }
+  .help-card h3 { font-size: 0.95rem; margin-bottom: 0.5rem; color: #fff; }
+  .help-card p { color: #cbd5e1; margin-bottom: 0.5rem; }
+  .help-card ul { margin: 0.3rem 0 0.3rem 1.2rem; color: #cbd5e1; }
+  .help-card a { color: #a5b4fc; }
+  .glossary-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .glossary-table td { padding: 0.5rem 0.4rem; border-top: 1px solid #1e2130; vertical-align: top; }
+  .glossary-table td:first-child { width: 34px; text-align: center; font-size: 1.1rem; }
+  .glossary-table td:nth-child(2) { font-weight: 600; color: #e2e8f0; white-space: nowrap; }
+  .glossary-table td:last-child { color: #94a3b8; }
+  .cred-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-family: monospace; }
+  .cred-table td { padding: 0.4rem; border-top: 1px solid #1e2130; }
+  .cred-table td:first-child { font-family: -apple-system, sans-serif; font-weight: 600; color: #e2e8f0; }
+  .cred-table td:not(:first-child) { color: #a5b4fc; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>Reg<span>Teches</span> Media Stack</h1>
+  <p id="host-line">🖥️ Loading server address...</p>
+  <p id="clock-line"></p>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tab-btn-dashboard" onclick="showTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" id="tab-btn-help" onclick="showTab('help')">❓ Help</button>
+</div>
+
+<div class="view active" id="view-dashboard">
+
+<div class="section-title">💾 Storage &amp; Memory</div>
+<div class="stat-grid" id="storage-grid"></div>
+
+<div class="section-title">🎬 Media &amp; Automation</div>
+<div class="grid" id="grid-media"></div>
+
+<div class="section-title">🛠️ Management</div>
+<div class="grid" id="grid-manage"></div>
+<div class="note">A link 404ing just means that app was skipped at install time (--skip-apps). The dot next to each name is its live container status.</div>
+
+<div class="section-title">📜 Recent Activity</div>
+<div class="info-box" id="activity-box"></div>
+
+<div class="section-title">📁 SMB Shares</div>
+<div class="info-box" id="smb-box"></div>
+
+</div>
+
+<div class="view" id="view-help">
+
+<div class="section-title">👋 Start here</div>
+<div class="help-card">
+  <p>This box runs your media library end to end: it finds new movies/shows,
+  downloads them, organizes them, and streams them to any device — TV,
+  phone, browser, whatever. You don't need to touch most of these apps
+  day-to-day. Two things cover 95% of what you'll actually do:</p>
+  <ul>
+    <li><b>Want to watch something you already have?</b> Open <b>Jellyfin</b> (the 🎞️ card above) — it's your Netflix-style library.</li>
+    <li><b>Want something that isn't in the library yet?</b> Open <b>Seerr</b> (the 🙋 card above), search for it, hit Request. It downloads and organizes itself automatically — no need to touch Sonarr/Radarr/Prowlarr directly.</li>
+  </ul>
+</div>
+
+<div class="section-title">⚙️ How it fits together</div>
+<div class="help-card">
+  <p>If you're curious what's actually happening behind a request, the
+  chain looks like this:</p>
+  <p><b>Prowlarr</b> (searches indexers) → <b>Sonarr / Radarr / Lidarr / Readarr / Whisparr</b>
+  (decide what to grab and where it goes, one per media type) →
+  <b>SABnzbd</b> or <b>qBittorrent</b> (actually downloads it) →
+  <b>Bazarr</b> (finds subtitles) → <b>Jellyfin</b> (organizes and streams it).
+  <b>Seerr</b> sits on top of all of it as the simple "just search and
+  click" front door. <b>ARR Dashboard</b> is a single page that shows
+  what every one of those apps is doing at once, if you ever want the
+  full picture instead of clicking through each one.</p>
+</div>
+
+<div class="section-title">📖 What everything is</div>
+<div class="help-card">
+  <table class="glossary-table">
+    <tr><td>🎞️</td><td>Jellyfin</td><td>Your media library — watch here.</td></tr>
+    <tr><td>🙋</td><td>Seerr</td><td>Request a movie or show — start here.</td></tr>
+    <tr><td>🔎</td><td>Prowlarr</td><td>Manages the indexer/search sources behind the scenes.</td></tr>
+    <tr><td>📺</td><td>Sonarr</td><td>Automates TV show downloading &amp; organizing.</td></tr>
+    <tr><td>🎬</td><td>Radarr</td><td>Same as Sonarr, for movies.</td></tr>
+    <tr><td>🎵</td><td>Lidarr</td><td>Same idea, for music.</td></tr>
+    <tr><td>📚</td><td>Readarr</td><td>Same idea, for books.</td></tr>
+    <tr><td>🔞</td><td>Whisparr</td><td>Same idea, for adult content.</td></tr>
+    <tr><td>💬</td><td>Bazarr</td><td>Automatically finds subtitles.</td></tr>
+    <tr><td>📰</td><td>SABnzbd</td><td>Downloads via Usenet (needs a Usenet provider account of your own).</td></tr>
+    <tr><td>🧲</td><td>qBittorrent</td><td>Downloads via torrents, routed through a VPN.</td></tr>
+    <tr><td>🎛️</td><td>ARR Dashboard</td><td>One page showing every app above at once.</td></tr>
+    <tr><td>🔄</td><td>Recyclarr</td><td>Keeps download quality rules up to date automatically. No web page.</td></tr>
+    <tr><td>🐳</td><td>Portainer</td><td>Technical: manage the underlying containers.</td></tr>
+    <tr><td>🌐</td><td>Nginx Proxy Mgr</td><td>Technical: reverse proxy / remote access routing.</td></tr>
+  </table>
+</div>
+
+<div class="section-title">🔑 Logins</div>
+<div class="help-card">
+  <p>The *arr apps, Bazarr and SABnzbd share one login, set when you ran
+  <code>tools/wire-stack.py</code>: username <b>media</b> and the random
+  password it printed (also saved in <code>credentials.txt</code> in the
+  install folder on the server). Keep that file private.</p>
+  <table class="cred-table">
+    <tr><td>Sonarr / Radarr / Lidarr / Readarr / Bazarr / SABnzbd</td><td>media</td><td>see credentials.txt</td></tr>
+    <tr><td>Portainer / NPM / ARR Dashboard</td><td>the admin account you create on first visit</td><td>your own</td></tr>
+    <tr><td>Network shares (Samba)</td><td>your Samba user</td><td>the password you gave the installer</td></tr>
+  </table>
+</div>
+
+<div class="section-title">💻 Map a network drive (Windows)</div>
+<div class="help-card">
+  <p>File Explorer → address bar → type
+  <code>\\<span id="help-host">this-server</span>\Media</code> (or
+  <code>\Downloads</code> / <code>\Shared</code>) → sign in with your
+  Samba user and password. Right-click → "Map network drive" to make it permanent.
+  Exact paths with a copy button are on the Dashboard tab.</p>
+</div>
+
+<div class="section-title" id="ts-section-title" style="display:none">🌐 Remote access / support</div>
+<div class="help-card" id="ts-card" style="display:none"></div>
+
+<div class="section-title" id="ntfy-section-title" style="display:none">🔔 Offline alerts</div>
+<div class="help-card" id="ntfy-card" style="display:none"></div>
+
+<div class="section-title">🆘 Something not working?</div>
+<div class="help-card">
+  <p>Check the Dashboard tab first — a red or amber dot next to an app
+  means it's down or still starting. If an app is skipped entirely (its
+  card 404s), it just wasn't installed on this box. Otherwise, reach out
+  to whoever set this server up for you.</p>
+</div>
+
+</div>
+
+<footer>REGTeches Media Stack — built by Ronald Goodchild</footer>
+</div>
+
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-menu-header" id="ctx-menu-title"></div>
+  <a class="ctx-item" id="ctx-manage" target="_blank" rel="noopener">
+    <span class="ctx-icon">🐳</span> Manage in Portainer
+  </a>
+</div>
+
+<script>
+const host = window.location.hostname;
+document.getElementById('host-line').textContent = '🖥️ ' + host;
+document.getElementById('help-host').textContent = host;
+
+// Viewer's own local clock, not the server's — whoever's looking at this
+// page cares what time it is for them.
+function updateClock() {
+  const now = new Date();
+  const date = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const time = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  document.getElementById('clock-line').textContent = `🕐 ${date} · ${time}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+function showTab(name) {
+  for (const t of ['dashboard', 'help']) {
+    document.getElementById('view-' + t).classList.toggle('active', t === name);
+    document.getElementById('tab-btn-' + t).classList.toggle('active', t === name);
+  }
+}
+
+// Last element of each entry is its docker-compose service name, used to
+// match against stats.json's "services" map for the live status dot.
+const apps = {
+  media: [
+    ['🎞️', 'Jellyfin', 'Media server', 8096, 'jellyfin'],
+    ['🙋', 'Seerr', 'Media requests', 5055, 'seerr'],
+    ['🔎', 'Prowlarr', 'Indexer manager', 9696, 'prowlarr'],
+    ['📺', 'Sonarr', 'TV automation', 8989, 'sonarr'],
+    ['🎬', 'Radarr', 'Movie automation', 7878, 'radarr'],
+    ['🎵', 'Lidarr', 'Music automation', 8686, 'lidarr'],
+    ['📚', 'Readarr', 'Book automation', 8787, 'readarr'],
+    ['🔞', 'Whisparr', 'Adult automation', 6969, 'whisparr'],
+    ['💬', 'Bazarr', 'Subtitles', 6767, 'bazarr'],
+    ['📰', 'SABnzbd', 'Usenet', 8085, 'sabnzbd'],
+  ],
+  manage: [
+    ['🐳', 'Portainer', 'Docker management', 9000, 'portainer'],
+    ['🎛️', 'ARR Dashboard', 'Unified *arr control', 3050, 'arr-dashboard'],
+    ['🔄', 'Recyclarr', 'TRaSH-Guides sync', null, 'recyclarr'],
+    ['🌐', 'Nginx Proxy Mgr', 'Reverse proxy', 81, 'npm'],
+  ],
+};
+
+let serviceStatus = {};
+// service-key -> {icon, name}, built once from the `apps` grid above so the
+// Activity feed's app names/icons never drift out of sync with the cards.
+const appMeta = {};
+Object.values(apps).flat().forEach(([icon, name, , , service]) => {
+  appMeta[service] = { icon, name };
+});
+// Portainer's environment ID for this box's local Docker socket — fixed
+// once connected in Portainer's own setup wizard, doesn't change container
+// to container. If Portainer is ever reconnected as a different
+// environment, update this constant.
+const PORTAINER_ENDPOINT_ID = 3;
+
+function renderGrid(id, list) {
+  const el = document.getElementById(id);
+  el.innerHTML = list.map(([icon, name, desc, port, service]) => {
+    const info = serviceStatus[service];
+    const status = info ? info.status : 'down';
+    const statLine = info && info.stat
+      ? `<div class="card-stat">${info.stat}</div>`
+      : `<div class="card-desc">${desc}</div>`;
+    const inner = `
+      <div class="icon">${icon}</div>
+      <div class="card-info">
+        <div class="card-name">${name}</div>
+        ${statLine}
+      </div>
+      <div class="status-dot ${status}" title="${status}"></div>`;
+    const dataAttr = info && info.id ? ` data-container-id="${info.id}"` : '';
+    return port
+      ? `<a class="card" href="http://${host}:${port}" target="_blank" rel="noopener"${dataAttr}>${inner}</a>`
+      : `<div class="card"${dataAttr}>${inner}</div>`;
+  }).join('');
+}
+
+function renderAllGrids() {
+  renderGrid('grid-media', apps.media);
+  renderGrid('grid-manage', apps.manage);
+}
+renderAllGrids();
+
+function humanSize(bytes) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0, n = bytes;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return n.toFixed(n >= 10 || i === 0 ? 0 : 1) + ' ' + units[i];
+}
+
+function gaugeClass(pcent) {
+  if (pcent >= 90) return 'crit';
+  if (pcent >= 75) return 'warn';
+  return 'ok';
+}
+
+function statCard(label, used, total, pcent) {
+  return `
+    <div class="stat-card">
+      <div class="stat-top">
+        <span class="stat-label">${label}</span>
+        <span class="stat-nums">${humanSize(used)} / ${humanSize(total)}</span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill ${gaugeClass(pcent)}" style="width:${pcent}%"></div></div>
+      <div class="stat-pcent">${pcent}% used</div>
+    </div>`;
+}
+
+async function loadStats() {
+  const grid = document.getElementById('storage-grid');
+  try {
+    const res = await fetch('stats.json?_=' + Date.now());
+    if (!res.ok) throw new Error('no stats yet');
+    const data = await res.json();
+    const disksHtml = (data.disks || []).map(d => statCard(d.label, d.used, d.size, d.pcent)).join('');
+    const memHtml = data.memory ? statCard('Memory', data.memory.used, data.memory.total, data.memory.pcent) : '';
+    grid.innerHTML = memHtml + disksHtml;
+    serviceStatus = data.services || {};
+    renderAllGrids();
+    renderActivity(data.activity);
+    renderTailscale(data.tailscale);
+    renderNtfy(data.ntfyTopic);
+  } catch (e) {
+    grid.innerHTML = '<div class="note">Stats not available yet (first run of mediastack-stats.timer takes up to 30s after install).</div>';
+  }
+}
+
+// Same self-clearing behavior as the SSH login banner (/etc/update-motd.d/
+// 99-tailscale-setup): show setup instructions with the live join link
+// while unconnected, a short confirmation once connected, and nothing at
+// all if Tailscale isn't installed on this box (data.tailscale undefined).
+function renderTailscale(ts) {
+  const title = document.getElementById('ts-section-title');
+  const card = document.getElementById('ts-card');
+  if (!ts) { title.style.display = 'none'; card.style.display = 'none'; return; }
+  title.style.display = '';
+  card.style.display = '';
+  if (ts.connected) {
+    card.innerHTML = `<p>✅ This server is connected to Tailscale — reachable remotely without opening any ports.</p>`;
+  } else if (ts.loginUrl) {
+    card.innerHTML = `
+      <p><b>Not connected yet.</b> Open this link in your own browser and sign in with
+      your own Tailscale account (free) to connect this server for remote access:</p>
+      <p><a href="${ts.loginUrl}" target="_blank" rel="noopener">${ts.loginUrl}</a></p>
+      <p>Once connected, whoever's helping you can reach this server for support without
+      being given access to your whole home network — see
+      <a href="https://tailscale.com/kb/1084/sharing" target="_blank" rel="noopener">Tailscale's device-sharing feature</a>.</p>`;
+  } else {
+    card.innerHTML = `<p>Tailscale is installed but not connected. Run <code>sudo tailscale up</code> on the server to get a login link.</p>`;
+  }
+}
+
+// ntfy.sh: shows the subscribe topic whenever one's configured (nothing at
+// all if --skip-ntfy was used at install time).
+function renderNtfy(topic) {
+  const title = document.getElementById('ntfy-section-title');
+  const card = document.getElementById('ntfy-card');
+  if (!topic) { title.style.display = 'none'; card.style.display = 'none'; return; }
+  title.style.display = '';
+  card.style.display = '';
+  card.innerHTML = `
+    <p>This server sends a push notification (with sound) whenever an app goes
+    down or comes back up. Install the <a href="https://ntfy.sh" target="_blank" rel="noopener">ntfy app</a>
+    (iOS/Android/desktop) and subscribe to this topic:</p>
+    <p><code>${topic}</code></p>
+    <p>Or just open <a href="https://ntfy.sh/${topic}" target="_blank" rel="noopener">ntfy.sh/${topic}</a>
+    in a browser to watch alerts live. Anyone who knows this exact topic name can
+    also see these alerts — treat it like a password, don't share it publicly.</p>`;
+}
+function timeAgo(iso) {
+  const secs = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (secs < 60) return 'just now';
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  return `${days}d ago`;
+}
+
+// Merged grabs/imports across every *arr app — see tools/collect-activity.py.
+// Empty array (nothing grabbed yet) and undefined (older stats.json before
+// this feature existed) both fall through to the same placeholder message.
+function renderActivity(activity) {
+  const box = document.getElementById('activity-box');
+  if (!activity || activity.length === 0) {
+    box.innerHTML = '<div class="note">Nothing grabbed yet — this fills in as Sonarr/Radarr/etc. start downloading.</div>';
+    return;
+  }
+  box.innerHTML = activity.map(item => {
+    const meta = appMeta[item.app] || { icon: item.icon, name: item.app };
+    return `
+      <div class="activity-row">
+        <div class="activity-icon">${item.icon}</div>
+        <div class="activity-main">
+          <div class="activity-title">${item.title}</div>
+          <div class="activity-meta"><span class="app-name">${meta.name}</span> &middot; ${item.event}</div>
+        </div>
+        <div class="activity-time">${timeAgo(item.date)}</div>
+      </div>`;
+  }).join('');
+}
+
+loadStats();
+setInterval(loadStats, 30000);
+
+const shares = ['Media', 'Downloads', 'Shared'];
+document.getElementById('smb-box').innerHTML =
+  '<h3>Windows: \\\\' + host + '\\&lt;share&gt;</h3>' +
+  shares.map(s => {
+    const path = '\\\\' + host + '\\' + s;
+    return `<div class="info-row">
+      <span class="info-path">${path}</span>
+      <button class="copy-btn" onclick="copyPath(this, '${path.replace(/\\/g, '\\\\')}')">Copy</button>
+    </div>`;
+  }).join('');
+
+function copyPath(btn, path) {
+  navigator.clipboard.writeText(path).then(() => {
+    btn.textContent = 'Copied'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  }).catch(() => {});
+}
+
+// Right-click any app card -> jump straight to that container in Portainer.
+// Delegated on the container div since cards are re-rendered on every
+// stats.json poll (a listener bound to the cards themselves would be lost
+// each refresh).
+const ctxMenu = document.getElementById('ctx-menu');
+const ctxTitle = document.getElementById('ctx-menu-title');
+const ctxManage = document.getElementById('ctx-manage');
+
+document.querySelector('.container').addEventListener('contextmenu', (e) => {
+  const card = e.target.closest('.card[data-container-id]');
+  if (!card) { ctxMenu.classList.remove('open'); return; }
+  e.preventDefault();
+  const name = card.querySelector('.card-name')?.textContent || 'Container';
+  ctxTitle.textContent = name;
+  ctxManage.href = `http://${host}:9000/#!/${PORTAINER_ENDPOINT_ID}/docker/containers/${card.dataset.containerId}`;
+  const menuW = 220, menuH = 70;
+  const x = Math.min(e.clientX, window.innerWidth - menuW - 8);
+  const y = Math.min(e.clientY, window.innerHeight - menuH - 8);
+  ctxMenu.style.left = x + 'px';
+  ctxMenu.style.top = y + 'px';
+  ctxMenu.classList.add('open');
+});
+
+document.addEventListener('click', () => ctxMenu.classList.remove('open'));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') ctxMenu.classList.remove('open'); });
+</script>
+</body>
+</html>

@@ -1,0 +1,339 @@
+# =============================================================
+# REGTeches Media Stack — Ubuntu Server
+# Rendered/deployed by install.sh into $INSTALL_ROOT — don't hand-edit
+# the deployed copy directly if you also want changes to survive a
+# re-run of install.sh; edit this source file and re-run instead.
+# =============================================================
+
+networks:
+  medianet:
+    driver: bridge
+    name: medianet
+
+services:
+
+  # ─── Dashboard ───────────────────────────────────────────────
+  dashboard:
+    image: nginx:alpine
+    container_name: dashboard
+    restart: always
+    networks:
+      - medianet
+    ports:
+      - "8090:80"
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
+
+  # ─── Docker Management ──────────────────────────────────────
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: always
+    networks:
+      - medianet
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${MEDIA_ROOT}/AppData/portainer:/data
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: always
+    networks:
+      - medianet
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=86400
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      # containrrr/watchtower's bundled Docker client defaults to API 1.25,
+      # which very new Docker daemons (this box: 29.x, min API 1.40) reject
+      # outright ("client version 1.25 is too old"). Pin it explicitly.
+      - DOCKER_API_VERSION=1.44
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # ─── VPN Kill Switch ────────────────────────────────────────
+  # qBittorrent is routed THROUGH this container.
+  # If the VPN drops, qBittorrent loses internet — kill switch, not a leak.
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    restart: always
+    profiles: ["qbittorrent"]
+    networks:
+      - medianet
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=mullvad
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${MULLVAD_PRIVATE_KEY}
+      - WIREGUARD_ADDRESSES=${MULLVAD_ADDRESS}
+      - SERVER_COUNTRIES=${VPN_COUNTRY}
+    ports:
+      - "8088:8088"       # qBittorrent WebUI (exposed via gluetun's network)
+      - "6881:6881"       # qBittorrent torrenting
+      - "6881:6881/udp"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/gluetun:/gluetun
+
+  # ─── Torrent Client (VPN Only) ──────────────────────────────
+  qbittorrent:
+    image: linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: always
+    profiles: ["qbittorrent"]
+    # Shares Gluetun's network namespace — ALL of qBittorrent's traffic
+    # goes through the VPN, with no separate network of its own.
+    network_mode: "service:gluetun"
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=8088
+    volumes:
+      - ${MEDIA_ROOT}/AppData/qbittorrent:/config
+      - ${MEDIA_ROOT}/Downloads:/downloads
+
+  # ─── Usenet Downloaders ─────────────────────────────────────
+  sabnzbd:
+    image: linuxserver/sabnzbd:latest
+    container_name: sabnzbd
+    restart: always
+    profiles: ["sabnzbd"]
+    networks:
+      - medianet
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "8085:8080"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/sabnzbd:/config
+      - ${MEDIA_ROOT}/Downloads:/downloads
+
+  # ─── Media Server ───────────────────────────────────────────
+  jellyfin:
+    image: linuxserver/jellyfin:latest
+    container_name: jellyfin
+    restart: always
+    networks:
+      - medianet
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "8096:8096"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/jellyfin:/config
+      - ${MEDIA_ROOT}/Media:/media
+
+  # ─── Media Automation (The *arr Stack) ──────────────────────
+  prowlarr:
+    image: linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: always
+    networks:
+      - medianet
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "9696:9696"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/prowlarr:/config
+
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: always
+    networks:
+      - medianet
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "8989:8989"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/sonarr:/config
+      - ${MEDIA_ROOT}/Media/TV:/tv
+      - ${MEDIA_ROOT}/Downloads:/downloads
+
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: radarr
+    restart: always
+    networks:
+      - medianet
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "7878:7878"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/radarr:/config
+      - ${MEDIA_ROOT}/Media/Movies:/movies
+      - ${MEDIA_ROOT}/Downloads:/downloads
+
+  lidarr:
+    image: linuxserver/lidarr:latest
+    container_name: lidarr
+    restart: always
+    profiles: ["lidarr"]
+    networks:
+      - medianet
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "8686:8686"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/lidarr:/config
+      - ${MEDIA_ROOT}/Media/Music:/music
+      - ${MEDIA_ROOT}/Downloads:/downloads
+
+  readarr:
+    # Readarr's upstream project is archived — no stable release anymore.
+    # Worse: the floating tags (:develop, :nightly, :latest) currently
+    # resolve to an EMPTY manifest list upstream (LinuxServer's own tagging
+    # automation appears to have died along with the project) — confirmed
+    # directly against the registry API, not a local config issue. Pinned
+    # to the last real versioned build instead. Check
+    # https://hub.docker.com/r/linuxserver/readarr/tags for something newer
+    # if this ever gets picked back up.
+    image: linuxserver/readarr:0.4.19-nightly
+    container_name: readarr
+    restart: always
+    profiles: ["readarr"]
+    networks:
+      - medianet
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "8787:8787"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/readarr:/config
+      - ${MEDIA_ROOT}/Media/Books:/books
+      - ${MEDIA_ROOT}/Downloads:/downloads
+
+  whisparr:
+    # LinuxServer.io doesn't publish a Whisparr image (adult-content policy);
+    # thespad (an LSIO team member) maintains the de facto standard build,
+    # same one referenced by TRaSH-Guides and the Servarr wiki.
+    image: thespad/whisparr:latest
+    container_name: whisparr
+    restart: always
+    profiles: ["whisparr"]
+    networks:
+      - medianet
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "6969:6969"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/whisparr:/config
+      - ${MEDIA_ROOT}/Media/Adult:/adult
+      - ${MEDIA_ROOT}/Downloads:/downloads
+
+  bazarr:
+    image: linuxserver/bazarr:latest
+    container_name: bazarr
+    restart: always
+    profiles: ["bazarr"]
+    networks:
+      - medianet
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "6767:6767"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/bazarr:/config
+      - ${MEDIA_ROOT}/Media:/media
+      - ${MEDIA_ROOT}/Downloads:/downloads
+
+  # ─── Requests ────────────────────────────────────────────────
+  # Jellyseerr (fallenbagel/jellyseerr) hasn't had a real release in about a
+  # year and can't authenticate against Jellyfin 12.x's new auth API
+  # (confirmed: https://github.com/binhex/arch-jellyfin/issues/11). Seerr is
+  # the actively-maintained continuation that already handles it — same
+  # project the Windows mediastack installer uses.
+  seerr:
+    image: ghcr.io/seerr-team/seerr:latest
+    container_name: seerr
+    restart: always
+    profiles: ["seerr"]
+    networks:
+      - medianet
+    environment:
+      - TZ=${TZ}
+    ports:
+      - "5055:5055"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/seerr:/app/config
+
+  # ─── TRaSH-Guides sync ───────────────────────────────────────
+  recyclarr:
+    # No :latest tag published — "8" tracks the latest 8.x release.
+    image: recyclarr/recyclarr:8
+    container_name: recyclarr
+    restart: always
+    profiles: ["recyclarr"]
+    networks:
+      - medianet
+    environment:
+      - TZ=${TZ}
+      - CRON_SCHEDULE=0 6 * * *
+    volumes:
+      - ${MEDIA_ROOT}/AppData/recyclarr:/config
+
+  # ─── Unified *arr control panel ─────────────────────────────
+  arr-dashboard:
+    image: khak1s/arr-dashboard:latest
+    container_name: arr-dashboard
+    restart: always
+    profiles: ["arr-dashboard"]
+    networks:
+      - medianet
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - "3050:3000"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/arr-dashboard:/app/data
+
+  # ─── Web Server / Reverse Proxy ─────────────────────────────
+  npm:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: npm
+    restart: always
+    profiles: ["npm"]
+    networks:
+      - medianet
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    volumes:
+      - ${MEDIA_ROOT}/AppData/npm/data:/data
+      - ${MEDIA_ROOT}/AppData/npm/letsencrypt:/etc/letsencrypt
